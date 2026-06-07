@@ -3,15 +3,13 @@
 Preventief Toekomstbestendig Onderhoud aan de Wegmarkeringen
 ==================================
 
-  1. Filteren          — checkbox- en bereik-filters
-  2. Tabel             — gesorteerd overzicht + exports (Excel, Pickle,
-                          4 thematische QGIS-lagen)
-  3. Grafieken         — matplotlib-kaarten, KDE plots, bocht × health
-  4. Clustering        — PELT changepoint-detectie met instelbare gewichten
-                          + cluster QGIS-export
-  5. Diagnose          — stap-voor-stap door de PELT-pipeline voor 1 hectopunt
-  6. Netwerk-validatie — controle dat clusters aaneengesloten zijn
-  7. Theorie PELT      — wiskundige onderbouwing
+  1. Filteren     — checkbox- en bereik-filters in de sidebar
+  2. Kaart        — interactieve hectopunten-kaart met instelbare heatmaplagen
+  3. Clustering   — PELT changepoint-detectie, inline (instelbare gewichten)
+  4. Diagnose     — stap-voor-stap door de PELT-pipeline voor 1 hectopunt
+  5. Asset-detail — per hectopunt: kwaliteit, zichtbaarheid, levensduur, foto's
+  6. Markeren     — hectopunten vlaggen (positief/negatief) + opmerkingen
+  7. Uitdraai     — PDF-onderhoudsrapport (negatieve markeringen) + QGIS-lagen
 
 Bestandsindeling
 ----------------
@@ -49,7 +47,7 @@ Pipeline (in volgorde):
 Run:
     pip install streamlit pandas numpy scikit-learn matplotlib ruptures \\
                 pyarrow shapely geopandas scipy contextily openpyxl
-    streamlit run pipeline_dashboard.py
+    streamlit run main.py
 """
 from __future__ import annotations
 

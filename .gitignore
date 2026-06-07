@@ -16,6 +16,7 @@ Data/
 
 # Oud archief (data + notebook-backups, honderden MB's)
 Archief/
+archief/
 
 # ============================================================
 # Python
@@ -36,6 +37,13 @@ main.py.bak
 main copy.py
 main copy 2.py
 *.layout
+
+# Losse notebooks / scripts — alleen lokaal, niet in de repo
+Quiknotes.txt
+Utils.py
+Test_Data_Preparation.py
+Untitled*.ipynb
+*Deel_*.ipynb
 
 # ============================================================
 # IDE / OS
