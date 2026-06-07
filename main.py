@@ -6668,16 +6668,25 @@ def _rap_cover(pdf: Any, state: Dict[str, Any], meta: Dict[str, Any]) -> None:
     plt.close(fig)
 
 
+def _negative_flag_mask(work: pd.DataFrame) -> pd.Series:
+    """True voor NEGATIEVE markeringen (problemen). De uitdraai bevat alleen
+    deze punten; positieve "in orde"-markeringen tellen niet mee. Legacy-
+    vlaggen zonder type gelden als negatief."""
+    if "_flag" not in work.columns:
+        return pd.Series(False, index=work.index)
+    mask = work["_flag"].astype(bool)
+    if "_flag_type" in work.columns:
+        mask &= work["_flag_type"].astype(str).str.lower() != "positief"
+    return mask
+
+
 def build_onderhoudsrapport_pdf(work: pd.DataFrame,
                                 meta: Dict[str, Any]) -> bytes:
-    """Bouw het onderhoudsrapport (alleen gemarkeerde punten) als PDF-bytes."""
+    """Bouw het onderhoudsrapport (alleen negatieve markeringen) als PDF-bytes."""
     from matplotlib.backends.backend_pdf import PdfPages
 
     work = work.copy()
-    if "_flag" in work.columns:
-        flagged = work[work["_flag"] == True]            # noqa: E712 (bool-kolom)
-    else:
-        flagged = work.iloc[0:0]
+    flagged = work[_negative_flag_mask(work)]
     # Netwerkvolgorde zodat de inspecteur de route logisch kan aflopen.
     sort_cols = [c for c in ("wegnr_hmp", "hectomtrng", "Zijde", "hecto_lttr")
                  if c in flagged.columns]
@@ -6722,7 +6731,7 @@ def _render_onderhoudsrapport_button(df: pd.DataFrame, work: pd.DataFrame) -> No
         "de cluster-GPKG. De PDF kun je hieronder ook direct downloaden."
     )
 
-    n_flag = int(work["_flag"].sum()) if "_flag" in work.columns else 0
+    n_flag = int(_negative_flag_mask(work).sum())
     if st.button("Genereer rapport (PDF) + QGIS-kaartlagen",
                  key="rapport_generate_btn", type="primary"):
         with st.spinner("Rapport én kaartlagen genereren naar Output/…"):
@@ -6750,8 +6759,10 @@ def _render_onderhoudsrapport_button(df: pd.DataFrame, work: pd.DataFrame) -> No
             st.error("Fouten:\n" + "\n".join(f"• {e}" for e in result["errors"]))
 
     if n_flag == 0:
-        st.info("Nog geen gemarkeerde punten in de selectie — markeer punten via de "
-                "vlag-knop op de kaart; het rapport toont dan die punten. "
+        st.info("Nog geen negatieve markeringen in de selectie — markeer "
+                "problemen via de vlag-knop op de kaart (sentiment 'Negatief'); "
+                "het rapport toont dan die punten. Positieve 'in orde'-"
+                "markeringen komen niet in de uitdraai. "
                 "(De QGIS-kaartlagen worden óók zonder markeringen geschreven.)")
 
     if st.session_state.get("_rapport_pdf"):
