@@ -1,0 +1,234 @@
++wegvakken = wegvakken_.copy()
+wegvak_columns = ['wvk_id', 'rijrichtng', 'wegnummer', 'wegnr_hmp', 'wegnr_aw', 'geometry',
+                      'beginkm', 'eindkm', 'wegbehnaam', 'distrnaam']
+# filter op A12
+#! Nans
+wegvakken = wegvakken[wegvakken['wegnr_aw'] == 'RW12'][wegvak_columns].fillna(-1)
+
+wegvakken = wegvakken.rename(columns=df_columns_wegvakken_rename)
+wegvakken['oplopend'] = wegvakken['wegvak_beginkm'] < wegvakken['wegvak_eindkm']
+wegvakken['snelwegnummer'] = wegvakken['wegnr_aw'].astype(str).str.replace('RW', '', regex=False)
+
+xy = wegvakken['wegvak_geometry'].apply(
+    lambda g: ', '.join([
+        f"{x}, {y}"
+        for line in g.geoms
+        for x, y in line.coords
+    ])
+)
+wegvakken['wegvak_geometry_flat']= xy
+
+wegvakken = wegvakken.astype(wegvak_columns_dtypes)
+
+hectopunten = hectopunten_.copy()
+hectopunten = hectopunten.sort_values(by=wvk, ascending=True).reset_index()
+
+xy = hectopunten.geometry.apply(
+    lambda g: f"{repr(g.geoms[0].x)}, {repr(g.geoms[0].y)}"
+)
+hectopunten['hectopunt_geometry_flat'] = xy
+
+lst = []
+# eerst filteren op wvk_id
+a = hectopunten['wvk_id'].unique()
+b = bochten[bochten['WVK_ID'].isin(a)]
+for i in range(len(a)):
+    # print(a[i])
+    c = b[b['WVK_ID'] == a[i]].shape[0]
+    if c > 1:
+        lst.append(int(a[i]))
+lst
+bochten[bochten['WVK_ID'].isin(lst)]
+
+from scipy.spatial.distance import cdist
+import numpy as np
+import pandas as pd
+
+# --- 1. Eerste coördinaat uit geometry_flat pakken ---
+def parse_first_rd_point(geom_str):
+    parts = str(geom_str).split(',')
+    return float(parts[0].strip()), float(parts[1].strip())
+
+hectopunten['_rd_x'] = hectopunten['hectopunt_geometry_flat'].apply(lambda g: parse_first_rd_point(g)[0])
+hectopunten['_rd_y'] = hectopunten['hectopunt_geometry_flat'].apply(lambda g: parse_first_rd_point(g)[1])
+
+bochten['_rd_x'] = bochten['bochten_geometry_flat'].apply(lambda g: parse_first_rd_point(g)[0])
+bochten['_rd_y'] = bochten['bochten_geometry_flat'].apply(lambda g: parse_first_rd_point(g)[1])
+
+# --- 2. Per wvk_id: dichtstbijzijnde bocht, anders NaN ---
+matched_indices = []
+
+for i, hecto_row in hectopunten.iterrows():
+    wvk = hecto_row['wvk_id']
+    bocht_candidates = bochten[bochten['wvk_id'] == wvk]
+
+    if bocht_candidates.empty:
+        matched_indices.append(None)
+        continue
+
+    hecto_pt  = np.array([[hecto_row['_rd_x'], hecto_row['_rd_y']]])
+    bocht_pts = bocht_candidates[['_rd_x', '_rd_y']].values
+
+    distances         = cdist(hecto_pt, bocht_pts)[0]
+    nearest_local_idx = np.argmin(distances)
+    nearest_distance  = distances[nearest_local_idx]
+
+    if nearest_distance > 250:
+        matched_indices.append(None)
+    else:
+        matched_indices.append(bocht_candidates.iloc[nearest_local_idx].name)
+
+# --- 3. Kolommen toevoegen ---
+valid_mask = [idx is not None for idx in matched_indices]
+bochten_cols = ['DRAAIHOEK', 'bochten_geometry_flat', 'bochten_gps_coordinaten']
+
+bochten_matched = pd.DataFrame(index=range(len(hectopunten)), columns=bochten_cols)
+for pos, idx in enumerate(matched_indices):
+    if idx is not None:
+        bochten_matched.loc[pos, bochten_cols] = bochten.loc[idx, bochten_cols].values
+
+df_merged = pd.concat([hectopunten.reset_index(drop=True), bochten_matched], axis=1)
+
+# --- 4. Opschonen ---
+df_merged.drop(columns=['_rd_x', '_rd_y'], inplace=True)
+hectopunten.drop(columns=['_rd_x', '_rd_y'], inplace=True)
+bochten.drop(columns=['_rd_x', '_rd_y'], inplace=True)
+
+print(f"Hectopunten: {len(hectopunten)} → Merged: {len(df_merged)}")
+print(f"Geen wvk_id match: {sum(1 for x in matched_indices if x is None)} rijen leeg")
+
+//
+
+hectopunten_sorted = hectopunten.sort_values('meter').reset_index(drop=True)
+
+# Filter to scope only
+hectopunten_sorted = hectopunten_sorted[
+    (hectopunten_sorted['meter'] >= df.index.min()) & 
+    (hectopunten_sorted['meter'] <= df.index.max())
+]
+
+df_meters = df.index.values
+hecto_meters = hectopunten_sorted['meter'].values
+
+idx = np.searchsorted(df_meters, hecto_meters)
+idx = np.clip(idx, 1, len(df_meters) - 1)
+
+left = df_meters[idx - 1]
+right = df_meters[idx]
+idx_nearest = np.where(hecto_meters - left <= right - hecto_meters, idx - 1, idx)
+
+# Build hectopunten with df.index as index
+hectopunten_reindexed = hectopunten_sorted.copy()
+hectopunten_reindexed.index = df_meters[idx_nearest]
+
+# Drop duplicates - keep first when multiple hectopunten map to same df.index
+hectopunten_reindexed = hectopunten_reindexed[~hectopunten_reindexed.index.duplicated(keep='first')]
+
+# Join onto df
+hectopunten_reindexed = hectopunten_reindexed.drop(columns=['meter'])
+
+df = df.join(hectopunten_reindexed)
+
+//
+
+from pyproj import Transformer
+from scipy.spatial.distance import cdist
+from collections import defaultdict
+import numpy as np
+
+# --- 1. WGS84 → RD New ---
+transformer = Transformer.from_crs("EPSG:4326", "EPSG:28992", always_xy=True)
+
+insp_points_rd = np.array([
+    transformer.transform(x, y)   # x=lon, y=lat
+    for x, y in insp_points
+])
+
+print("=== INSP na transformatie (RD) ===")
+print(insp_points_rd[:3])
+print("\n=== DF punten (RD) ===")
+print(df_points[:3])
+
+# --- 2. Afstandsmatrix in meters ---
+dist_matrix    = cdist(insp_points_rd, df_points)
+nearest_df_idx = np.argmin(dist_matrix, axis=1)
+
+print("\n=== Afstanden na transformatie (meters) ===")
+print(dist_matrix[:3, :3])-
+print("\n=== Unieke matches ===")
+print(f"{len(set(nearest_df_idx))} van {len(df)} df-rijen")
+
+# --- 3. Scores groeperen per df-rij ---
+health_map     = defaultdict(list)
+visibility_map = defaultdict(list)
+
+for i, j in enumerate(nearest_df_idx):
+    health_map[j].append(str(insp.iloc[i]['Health_Score']))
+    visibility_map[j].append(str(insp.iloc[i]['Visibility_Score']))
+–
+# --- 4. Toevoegen aan df ---
+df['Health_Scores']     = [', '.join(health_map[j])     if j in health_map     else None for j in range(len(df))]
+df['Visibility_Scores'] = [', '.join(visibility_map[j]) if j in visibility_map else None for j in range(len(df))]
+
+print(df[['index', 'Health_Scores', 'Visibility_Scores']].dropna().head(10))
+
+//
+
+# --- DEBUG: check coördinaten ---
+print("=== INSP eerste punten ===")
+print(insp_points[:3])
+
+print("\n=== DF punten ===")
+print(df_points[:3])
+
+print("\n=== Afstandsmatrix sample (eerste 3x3) ===")
+print(dist_matrix[:3, :3])
+
+print("\n=== nearest_df_idx eerste 10 ===")
+print(nearest_df_idx[:10])
+
+print("\n=== Hoeveel unieke df-indices gematcht? ===")
+print(f"Unieke matches: {len(set(nearest_df_idx))} van {len(df)} df-rijen")
+
+print("\n=== health_map keys (eerste 10) ===")
+print(list(health_map.keys())[:10])
+
+print("\n=== df index range ===")
+print(f"df heeft {len(df)} rijen, indices 0..{len(df)-1}")import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+serie = df['onderhoudsmoment']
+
+min_jaar = int(serie.min())
+max_jaar = int(serie.max())
+
+start = min_jaar - (min_jaar % 4)
+einde = max_jaar + (4 - max_jaar % 4)
+
+bins = np.arange(start, einde + 4, 4)
+labels = [f"{bins[i]}-{bins[i+1]-1}" for i in range(len(bins)-1)]
+
+groepen = pd.cut(
+    serie,
+    bins=bins,
+    labels=labels,
+    right=False,
+    include_lowest=True
+)
+
+counts = groepen.value_counts(sort=False)
+
+onbekend = serie.isna().sum()
+if onbekend > 0:
+    counts.loc['Onbekend'] = onbekend
+
+plt.figure(figsize=(10, 6))
+plt.bar(counts.index.astype(str), counts.values)
+
+plt.title('Verdeling onderhoudsmoment per 4 jaar')
+plt.xlabel('Onderhoudsmoment')
+plt.ylabel('Aantal')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()

@@ -1,0 +1,42 @@
+# ============================================================
+# Data-mappen — NOOIT pushen (te groot voor GitHub).
+# Mapstructuur blijft behouden via de .gitkeep-bestanden.
+# Alle echte data/foto's in Input/ en Output/ worden genegeerd.
+# ============================================================
+Input/**
+!Input/**/
+!Input/**/.gitkeep
+
+Output/**
+!Output/**/
+!Output/**/.gitkeep
+
+# Oud archief (data + notebook-backups, honderden MB's)
+Archief/
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.ruff_cache/
+.pytest_cache/
+
+# ============================================================
+# Backups / kopieën — niet pushen
+# ============================================================
+*.bak
+*.bak_*
+main.py.bak
+main copy.py
+main copy 2.py
+*.layout
+
+# ============================================================
+# IDE / OS
+# ============================================================
+.idea/
+.vscode/
+.DS_Store
