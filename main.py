@@ -45,8 +45,7 @@ Pipeline (in volgorde):
                                   diagnose ◄───────────┘
 
 Run:
-    pip install streamlit pandas numpy scikit-learn matplotlib ruptures \\
-                pyarrow shapely geopandas scipy contextily openpyxl
+    pip install -r requirements.txt
     streamlit run main.py
 """
 from __future__ import annotations

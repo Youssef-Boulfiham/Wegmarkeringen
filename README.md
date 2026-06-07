@@ -15,8 +15,7 @@ wánneer onderhoud nodig is. Gemaakt voor Rijkswaterstaat.
 ## Aan de slag
 
 ```bash
-pip install streamlit pandas numpy scikit-learn matplotlib ruptures \
-            pyarrow shapely geopandas scipy contextily openpyxl
+pip install -r requirements.txt
 streamlit run main.py
 ```
 

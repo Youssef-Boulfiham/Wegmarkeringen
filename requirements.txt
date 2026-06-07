@@ -1,0 +1,28 @@
+# Dependencies voor Wegmarkeringen
+# Installeren:  pip install -r requirements.txt
+
+# --- Dashboard (main.py) ---
+streamlit
+pandas
+numpy
+scipy
+scikit-learn
+matplotlib
+ruptures            # PELT changepoint-detectie
+pydeck              # interactieve kaart
+
+# --- Geo / coördinaten ---
+geopandas
+shapely
+pyproj
+contextily          # achtergrondkaart (basemap)
+
+# --- In-/uitvoer ---
+pyarrow             # pandas pickle/parquet
+openpyxl            # Excel-export
+Pillow              # foto's inladen
+
+# --- Data-preparatie notebook + tests ---
+jupyter             # om Data_Preparation.ipynb te draaien
+ipywidgets
+ipython
