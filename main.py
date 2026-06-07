@@ -3272,7 +3272,7 @@ def generate_all_outputs(df: pd.DataFrame) -> Dict[str, Any]:
     except Exception as exc:
         summary["errors"].append(f"Audit-log: {exc}")
 
-    # 8. Onderhoudsrapport (PDF) — gemarkeerde punten. Hergebruikt de
+    # 8. Onderhoudsrapport (PDF) — negatieve markeringen. Hergebruikt de
     # kaart-workframe uit stap 4 zodat de vlaggen exact overeenkomen met
     # wat de kaart-tab toont.
     try:
@@ -3287,10 +3287,10 @@ def generate_all_outputs(df: pd.DataFrame) -> Dict[str, Any]:
         pdf_bytes = build_onderhoudsrapport_pdf(work_for_pdf, meta)
         pdf_path = Settings.OUTPUT_DIR / "onderhoudsrapport_gemarkeerd.pdf"
         pdf_path.write_bytes(pdf_bytes)
-        n_flag = (int(work_for_pdf["_flag"].sum())
-                  if "_flag" in work_for_pdf.columns else 0)
+        n_flag = int(_negative_flag_mask(work_for_pdf).sum())
         summary["written"].append(
-            f"Onderhoudsrapport (PDF) → {pdf_path.name} ({n_flag:,} gemarkeerd)"
+            f"Onderhoudsrapport (PDF) → {pdf_path.name} "
+            f"({n_flag:,} negatieve markering(en))"
         )
     except Exception as exc:
         summary["errors"].append(f"Onderhoudsrapport (PDF): {exc}")
@@ -5907,7 +5907,7 @@ def _persist_widget_state(keys: List[str]) -> None:
 
 
 # ============================================================
-# ONDERHOUDSRAPPORT (PDF) — printbare uitdraai van gemarkeerde punten
+# ONDERHOUDSRAPPORT (PDF) — printbare uitdraai van negatieve markeringen
 # ------------------------------------------------------------
 # A4-rapport dat regio-inspecteurs uitprinten en met aannemers delen:
 # per handmatig gemarkeerd hectopunt de LOCATIE (netjes per regel, incl.
@@ -6628,7 +6628,7 @@ def _rap_cover(pdf: Any, state: Dict[str, Any], meta: Dict[str, Any]) -> None:
     y -= 0.014
     cards = [
         ("Hectopunten (selectie)", f"{meta.get('n_points', 0):,}".replace(",", "."), _RAP_NAVY),
-        ("Gemarkeerde punten", f"{meta.get('n_flagged', 0):,}".replace(",", "."), "#dc2626"),
+        ("Negatieve markeringen", f"{meta.get('n_flagged', 0):,}".replace(",", "."), "#dc2626"),
     ]
     gap = 0.02
     cw = (_RAP_MR - _RAP_ML - gap * (len(cards) - 1)) / len(cards)
