@@ -11,6 +11,9 @@ Output/**
 !Output/**/
 !Output/**/.gitkeep
 
+# Losse data-map (oudere prep-workflow)
+Data/
+
 # Oud archief (data + notebook-backups, honderden MB's)
 Archief/
 
