@@ -19,13 +19,30 @@ pip install -r requirements.txt
 streamlit run main.py
 ```
 
-## Mappen
+## Mapstructuur
 
-- `Input/` — bronbestanden (wegmarkeringen, bochten, deklagen, verkeer). **Niet** in de repo; zet je eigen data hier neer.
-- `Output/` — gegenereerde resultaten (datasets, QGIS-lagen, foto's, PDF-rapport). Ook niet in de repo.
+```
+Wegmarkeringen/
+├── main.py                       # Streamlit-dashboard
+├── Data_Preparation.ipynb        # data-prep notebook
+├── UnitTest.py                   # tests op de data-prep
+├── requirements.txt              # dependencies
+├── README.md
+├── LICENSE
+├── Input/                        # bronbestanden — NIET in repo, zelf vullen
+│   ├── Wegmarkeringen/
+│   ├── Bochten/
+│   ├── Deklagen/
+│   ├── INWEVA/                   # verkeersintensiteit
+│   └── Beschrijvende_Plaatsaanduiding_systematiek/
+└── Output/                       # resultaten — NIET in repo, wordt gegenereerd
+    ├── Kaartlagen/               # QGIS-lagen (.gpkg)
+    └── hectopunt_fotos/          # foto's per gemarkeerd hectopunt
+```
 
-De mapstructuur staat er wel (lege mappen via `.gitkeep`); data en foto's
-blijven bewust buiten GitHub vanwege de bestandsgrootte.
+`Input/` en `Output/` staan als lege mappen in de repo (via `.gitkeep`).
+Data en foto's blijven bewust buiten GitHub — te groot, en het is
+RWS-data die niet publiek hoort.
 
 ## Werkwijze
 
