@@ -1,16 +1,21 @@
 """Transcribeer alle mp3-bestanden in een map naar tekst.
 
-Gebruik:  python transcribe.py /pad/naar/map [--model small] [--language nl]
+Gebruik:  python transcribe.py /pad/naar/map [--out /pad/voor/transcripts]
+                                            [--model small] [--language nl]
 
-- Schrijft voor elk bestand `naam.mp3` een `transcripts/naam.txt`.
+- Schrijft voor elk audiobestand `naam.mp3` (of .wav/.m4a) een `naam.txt`
+  in de map `transcripts` (standaard binnen de audiomap, anders `--out`).
 - Bestanden met een bestaand transcript worden overgeslagen, dus je kunt het
-  script zo vaak draaien als je wilt: alleen nieuwe mp3's worden verwerkt.
+  script zo vaak draaien als je wilt: alleen nieuwe opnames worden verwerkt.
 """
 import argparse
 import sys
 from pathlib import Path
 
 from faster_whisper import WhisperModel
+
+
+AUDIO = {".mp3", ".wav", ".m4a"}
 
 
 def fmt(seconds):
@@ -22,6 +27,8 @@ def fmt(seconds):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("folder", type=Path)
+    p.add_argument("--out", type=Path, default=None,
+                   help="map voor transcripts (standaard: <map>/transcripts)")
     p.add_argument("--model", default="small",
                    help="tiny, base, small, medium, large-v3 (groter = beter maar trager)")
     p.add_argument("--language", default=None,
@@ -32,11 +39,12 @@ def main():
     folder = args.folder.expanduser()
     if not folder.is_dir():
         sys.exit(f"Map bestaat niet: {folder}")
-    out_dir = folder / "transcripts"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = (args.out.expanduser() if args.out else folder / "transcripts")
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     todo = [f for f in sorted(folder.rglob("*"))
-            if f.suffix.lower() == ".mp3" and out_dir not in f.parents
+            if f.suffix.lower() in AUDIO and not f.name.startswith(".")
+            and out_dir not in f.parents
             and not (out_dir / f.relative_to(folder).with_suffix(".txt")).exists()]
     if not todo:
         print("Niets nieuws om te transcriberen.")
@@ -60,7 +68,7 @@ def main():
         tmp = target.with_suffix(".part")
         tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
         tmp.rename(target)
-        print(f"   -> {target.relative_to(folder)} ({info.language})")
+        print(f"   -> {target} ({info.language})")
 
     print("Klaar.")
 
